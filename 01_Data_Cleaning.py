@@ -2,38 +2,35 @@ import re
 from pathlib import Path
 import pandas as pd
 
-
 # =========================================================
 # 1. FILE PATHS
 # =========================================================
 
-file_path = Path(
-    r"/Users/ibrahimbarqawi/Desktop/Data_Analysis_Course_and_projects/Codes/17-online_retail_II/Data/online_retail_II.xlsx"
-)
+# Folder containing this Python script
+BASE_DIR = Path(__file__).resolve().parent
 
-output_path = (
-    file_path.parent
-    /"Cleaned"/"online_retail_II_cleaned.xlsx"
-)
+# Input workbook
+file_path = BASE_DIR / "online_retail_II.xlsx"
 
-if not file_path.exists():
+# Configuration workbook
+config_path = BASE_DIR / "Verification_Configuration.xlsx"
+
+# Check required files
+if not file_path.is_file():
     raise FileNotFoundError(
-        f"File not found:\n{file_path}"
+        f"Input file not found:\n{file_path}"
     )
 
-
-
-config_path = Path(
-   "/Users/ibrahimbarqawi/Desktop/Data_Analysis_Course_and_projects/Codes/17-online_retail_II/Model/Cleaning/Verification_Configuration.xlsx"
-)
-
-if not config_path.exists():
+if not config_path.is_file():
     raise FileNotFoundError(
-        f"Configuration file not found:\n"
-        f"{config_path}"
+        f"Configuration file not found:\n{config_path}"
     )
 
+# Create the output folder
+output_folder = BASE_DIR / "Cleaned"
+output_folder.mkdir(parents=True, exist_ok=True)
 
+output_path = output_folder / "online_retail_II_cleaned.xlsx"
 
 # =========================================================
 # 2. READ CONFIGURATION FILE
