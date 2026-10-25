@@ -67,3 +67,5 @@ The report highlighted remaining exceptions and areas requiring client decisions
 - pandas
 - pathlib
 - re
+## Project time 
+2 days
