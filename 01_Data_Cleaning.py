@@ -1,3 +1,4 @@
+import argparse
 import re
 from pathlib import Path
 import pandas as pd
@@ -9,8 +10,15 @@ import pandas as pd
 # Folder containing this Python script
 BASE_DIR = Path(__file__).resolve().parent
 
-# Input workbook
-file_path = BASE_DIR / "online_retail_II.xlsx"
+parser = argparse.ArgumentParser(description="Clean the sales workbook.")
+parser.add_argument("--sample", action="store_true",
+                    help="Clean the Before sheets in the included portfolio sample.")
+args = parser.parse_args()
+
+# The sample has a title row followed by the actual column headers.
+input_name = ("Data_Cleaning_Portfolio_Sample.xlsx"
+              if args.sample else "online_retail_II.xlsx")
+file_path = BASE_DIR / input_name
 
 # Configuration workbook
 config_path = BASE_DIR / "Verification_Configuration.xlsx"
@@ -30,7 +38,9 @@ if not config_path.is_file():
 output_folder = BASE_DIR / "Cleaned"
 output_folder.mkdir(parents=True, exist_ok=True)
 
-output_path = output_folder / "online_retail_II_cleaned.xlsx"
+output_name = ("portfolio_sample_cleaned.xlsx"
+               if args.sample else "online_retail_II_cleaned.xlsx")
+output_path = output_folder / output_name
 
 # =========================================================
 # 2. READ CONFIGURATION FILE
@@ -96,7 +106,7 @@ for sheet_name, sheet_rows in configuration_df.groupby(
         configured_columns = ( sheet_rows.loc[sheet_rows["Data Type"] == data_type ,
                                               "Column"
                                               ].dropna().astype("string").str.replace(r"[\x00-\x1F\x7F]", "",
-                                                                                      regex = True).str.replace(r"\s+","",regex = True).tolist())
+                                                                                      regex = True).str.replace(r"\s+", " ", regex=True).str.strip().str.replace("-", "_", regex=False).tolist())
 
         sheet_configurations[sheet_name][
             configuration_type
@@ -533,16 +543,28 @@ print("Workbook sheets:")
 print(sheet_list)
 
 
-sheets_to_clean = [
-    sheet_name
-    for sheet_name in sheet_list
-    if sheet_name in sheet_configurations
-]
+if args.sample:
+    # Ignore the After sheets: only original sample records are cleaned.
+    source_sheets = {
+        name: name.replace("Before ", "Year ", 1)
+        for name in sheet_list if name.startswith("Before ")
+    }
+    header_row = 1
+else:
+    source_sheets = {name: name for name in sheet_list}
+    header_row = 0
 
-all_sheets = pd.read_excel(
-    file_path,
-    sheet_name=sheets_to_clean
-)
+source_sheets = {
+    source: target for source, target in source_sheets.items()
+    if target in sheet_configurations
+}
+if not source_sheets:
+    raise ValueError("No input sheets match the cleaning configuration.")
+
+all_sheets = {
+    target: pd.read_excel(file_path, sheet_name=source, header=header_row)
+    for source, target in source_sheets.items()
+}
 
 
 # =========================================================
@@ -735,3 +757,4 @@ print(
     f"Cleaned workbook saved to:\n"
     f"{output_path}"
 )
+

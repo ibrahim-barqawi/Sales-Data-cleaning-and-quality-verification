@@ -1,3 +1,4 @@
+import argparse
 import re
 from pathlib import Path
 
@@ -8,11 +9,16 @@ import pandas as pd
 # 1. CLEANED WORKBOOK PATH
 # =========================================================
 
-file_path = (
-    Path(__file__).resolve().parent
-    / "Cleaned"
-    / "online_retail_II_cleaned.xlsx"
-)
+parser = argparse.ArgumentParser(description="Verify the cleaned sales workbook.")
+parser.add_argument("--sample", action="store_true",
+                    help="Verify the cleaned portfolio sample.")
+args = parser.parse_args()
+
+BASE_DIR = Path(__file__).resolve().parent
+output_name = ("portfolio_sample_cleaned.xlsx"
+               if args.sample else "online_retail_II_cleaned.xlsx")
+file_path = BASE_DIR / "Cleaned" / output_name
+
 # =========================================================
 # 2. VERIFICATION CONFIGURATION PATH
 # =========================================================
@@ -445,14 +451,21 @@ def verify_dataframe(df, sheet_name, rules):
         else:
             print(f"PASS: '{col}' is numeric.")
             
-        ## The below is a customized lines have been written for specific client's requirment
-        abnormal_values = df[col].between(0, 0.1).sum()
+        # Business exception counts apply only to valid numeric columns.
+        if col not in df.columns or not pd.api.types.is_numeric_dtype(df[col]):
+            continue
 
-        print(
-            f"REVIEW: '{col}' contains {abnormal_values} "
-            f"value(s) between 0 and 0.1, including both limits."
-        )
-       ## The above is a customized lines have been written for specific client's requirment
+        if col == "Price":
+            zero_prices = df[col].eq(0).sum()
+            near_zero_prices = (df[col].gt(0) & df[col].le(0.1)).sum()
+            print(f"REVIEW: 'Price' contains {zero_prices} zero price(s).")
+            print(
+                f"REVIEW: 'Price' contains {near_zero_prices} "
+                "near-zero price(s), greater than 0 and up to 0.1 inclusive."
+            )
+        elif col == "Quantity":
+            zero_quantities = df[col].eq(0).sum()
+            print(f"REVIEW: 'Quantity' contains {zero_quantities} zero value(s).")
 
 
     if failed_numeric_columns:
@@ -791,6 +804,8 @@ def verify_dataframe(df, sheet_name, rules):
 
 
         if col not in df.columns:
+            failed_category_columns.append(col)
+            print(f"FAIL: Allowed-value column '{col}' is missing.")
             continue
 
         existing_values = set(
@@ -828,7 +843,7 @@ def verify_dataframe(df, sheet_name, rules):
     failed_date_relationships = []
 
     if not rules["date_relationships"]:
-        print("INFO: date relationship in this data set")
+        print("INFO: No date relationships are configured.")
 
     for start_col, end_col in rules["date_relationships"]:
 
@@ -836,7 +851,8 @@ def verify_dataframe(df, sheet_name, rules):
             start_col not in df.columns
             or end_col not in df.columns
         ):
-            print('No Date relationship detected')
+            failed_date_relationships.append((start_col, end_col))
+            print(f"FAIL: Missing date column for '{start_col}' -> '{end_col}'.")
             continue
 
         start_dates = pd.to_datetime(
@@ -903,7 +919,9 @@ excel_file = pd.ExcelFile(file_path)
 
 all_sheets = pd.read_excel(
     file_path,
-    sheet_name=None
+    sheet_name=None,
+    dtype=object,
+    na_values=["NAT"]
 )
 
 print("Workbook sheets:")
@@ -913,6 +931,10 @@ workbook_failed_checks = 0
 verified_sheets = 0
 
 for sheet_name, df in all_sheets.items():
+
+    # Preserve Excel text cells such as numeric-looking Invoice IDs.
+    # Infer only columns whose underlying values are actually numeric/dates.
+    df = df.infer_objects()
 
     # Skip sheets that do not contain cleaned datasets.
     if sheet_name not in sheet_rules:
@@ -943,8 +965,15 @@ print("=" * 70)
 print(f"Sheets verified: {verified_sheets}")
 print(f"Total failed check groups: {workbook_failed_checks}")
 
-if workbook_failed_checks == 0:
+if verified_sheets == 0:
+    print("OVERALL WORKBOOK RESULT: NOT VERIFIED — no matching sheets found.")
+    raise SystemExit(1)
+elif workbook_failed_checks == 0:
     print("OVERALL WORKBOOK RESULT: PASS")
 else:
     print("OVERALL WORKBOOK RESULT: FAIL")
     print("Review the failed checks before approving the workbook.")
+
+
+if workbook_failed_checks:
+    raise SystemExit(1)
