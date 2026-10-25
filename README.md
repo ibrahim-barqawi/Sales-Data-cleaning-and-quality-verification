@@ -55,6 +55,9 @@ Report records identified as bad-debt adjustments separately from product sales.
 
 Flag records with a quantity of `0` for review.
 
+### Non-Printable Characters
+Checks text columns for unwanted hidden ASCII control characters, such as line breaks (\n), tabs (\t), carriage returns (\r), and null characters (\x00), using the pattern [\x00-\x1F\x7F].
+
 ## Deliverables and Results
 
 The cleaned dataset and verification report were shared with the client according to the agreed scope.
