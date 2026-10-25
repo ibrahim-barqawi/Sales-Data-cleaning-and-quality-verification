@@ -8,9 +8,11 @@ import pandas as pd
 # 1. CLEANED WORKBOOK PATH
 # =========================================================
 
-file_path = Path(r"/Users/ibrahimbarqawi/Desktop/Data_Analysis_Course_and_projects/Codes/17-online_retail_II/Data/Cleaned/online_retail_II_cleaned.xlsx")
-
-
+file_path = (
+    Path(__file__).resolve().parent
+    / "Cleaned"
+    / "online_retail_II_cleaned.xlsx"
+)
 # =========================================================
 # 2. VERIFICATION CONFIGURATION PATH
 # =========================================================
